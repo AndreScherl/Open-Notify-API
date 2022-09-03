@@ -5,6 +5,7 @@ from math import degrees
 import redis
 import json
 import os
+import pytz
 
 REDIS_URL = os.getenv('REDISTOGO_URL', 'redis://localhost:6379')
 r = redis.StrictRedis.from_url(REDIS_URL)
@@ -62,6 +63,10 @@ def get_passes(lon, lat, alt, n):
     # Set time now
     now = datetime.datetime.utcnow()
     location.date = now
+    
+    # Take care of local time
+    utc = pytz.timezone("UTC")
+    berlin = pytz.timezone("Europe/Berlin")
 
     # Predict passes
     passes = []
@@ -69,10 +74,14 @@ def get_passes(lon, lat, alt, n):
         tr, azr, tt, altt, ts, azs = location.next_pass(iss)
         duration = int((ts - tr) * 60 * 60 * 24)
         year, month, day, hour, minute, second = tr.tuple()
-        dt = datetime.datetime(year, month, day, hour, minute, int(second))
-
+        dt = utc.localize(datetime.datetime(year, month, day, hour, minute, int(second)))
+        dt2 = utc.localize(datetime.datetime.fromtimestamp(dt.timestamp()+duration))
+        
         if duration > 60:
-            passes.append({"risetime": timegm(dt.timetuple()), "duration": duration})
+            passes.append({"risetime": timegm(dt.timetuple()),
+                           "duration": duration,
+                           "risetime-easy:":dt.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S"),
+                           "settime-easy":dt2.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S")})
 
         # Increase the time by more than a pass and less than an orbit
         location.date = tr + 25*ephem.minute
