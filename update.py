@@ -1,9 +1,8 @@
 import redis
 import json
-import urllib2
-import datetime
+import requests
+from datetime import datetime
 from calendar import timegm
-import time
 import os
 import sys
 
@@ -12,62 +11,28 @@ r = redis.StrictRedis.from_url(REDIS_URL)
 
 # NASA's station FDO updates this page with very precise data. Only using a
 # small bit of it for now.
-url = "http://spaceflight.nasa.gov/realdata/sightings/SSapplications/Post/JavaSSOP/orbit/ISS/SVPOST.html"
+url = "https://api.wheretheiss.at/v1/satellites/25544/tles"
 
 
 def update_tle():
-    # Open a http request
-    req = urllib2.Request(url)
-    response = urllib2.urlopen(req)
-    data = response.read()
+    hdrs = {'User-Agent': 'Mozilla / 5.0 (X11 Linux x86_64) AppleWebKit / 537.36 (KHTML, like Gecko) Chrome / 52.0.2743.116 Safari / 537.36'}    
+    response = requests.get(url, headers=hdrs)
+    data = json.loads(response.content)
 
-    # parse the HTML
-    data = data.split("<PRE>")[1]
-    data = data.split("</PRE>")[0]
-    data = data.split("Vector Time (GMT): ")[1:]
+    tletime = datetime.fromtimestamp(data["tle_timestamp"])
+    timeofrequest = datetime.fromtimestamp(data["requested_timestamp"])
 
-    for group in data:
-        # Time the vector is valid for
-        datestr = group[0:17]
+    tle = json.dumps([data["header"], data["line1"], data["line2"]])
 
-        # parse date string
-        tm = time.strptime(datestr, "%Y/%j/%H:%M:%S")
-
-        # change into more useful datetime object
-        dt = datetime.datetime(tm[0], tm[1], tm[2], tm[3], tm[4], tm[5])
-
-        # Debug
-        #print dt
-
-        # More parsing
-        tle = group.split("TWO LINE MEAN ELEMENT SET")[1]
-        tle = tle[8:160]
-        lines = tle.split('\n')[0:3]
-
-        # Most recent TLE
-        now = datetime.datetime.utcnow()
-
-        if (dt - now).days >= 0:
-            # Debug Printing
-            """
-            print dt
-            for line in lines:
-                print line.strip()
-            print "\n~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~\n"
-            """
-
-            tle = json.dumps([lines[0].strip(), lines[1].strip(), lines[2].strip()])
-
-            r.set("iss_tle", tle)
-            r.set("iss_tle_time", timegm(dt.timetuple()))
-            r.set("iss_tle_last_update", timegm(now.timetuple()))
-            break
+    r.set("iss_tle", tle)
+    r.set("iss_tle_time", timegm(tletime.timetuple()))
+    r.set("iss_tle_last_update", timegm(timeofrequest.timetuple()))
 
 
 if __name__ == '__main__':
-    print "Updating ISS TLE from JSC..."
+    print("Updating ISS TLE from JSC...")
     try:
         update_tle()
     except:
         exctype, value = sys.exc_info()[:2]
-        print "Error:", exctype, value
+        print("Error:", exctype, value)

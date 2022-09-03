@@ -240,4 +240,5 @@ def astros():
 
 if __name__ == "__main__":
     app.debug = True
-    app.run()
+    # app.run()
+    app.run(host=os.getenv('ONA_HOST', '127.0.0.1'), port=int(os.getenv('ONA_PORT', '5000')))

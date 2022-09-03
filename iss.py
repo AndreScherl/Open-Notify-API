@@ -65,7 +65,7 @@ def get_passes(lon, lat, alt, n):
 
     # Predict passes
     passes = []
-    for p in xrange(n):
+    for p in range(n):
         tr, azr, tt, altt, ts, azs = location.next_pass(iss)
         duration = int((ts - tr) * 60 * 60 * 24)
         year, month, day, hour, minute, second = tr.tuple()
