@@ -1,0 +1,33 @@
+version: '3.3'
+services:
+  opennotify:
+    build: .
+    volumes:
+      - .:/open-notify
+    ports:
+      - "5001:5001"
+    links:
+      - redis
+    environment:
+      ONA_HOST: "0.0.0.0"
+      ONA_PORT: "5001"
+      REDISTOGO_URL: "redis://redis:6379"
+    command: >
+      /bin/sh -c "
+        while ! nc -z redis 6379;
+        do
+          echo sleeping;
+          sleep 1;
+        done;
+        sleep 5;
+        echo Connected!;
+        python update.py;
+        python app.py;
+      "
+  redis:
+    image: "redis:alpine"
+    volumes:
+      - redis:/data
+
+volumes:
+  redis: 
