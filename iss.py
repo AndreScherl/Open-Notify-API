@@ -80,7 +80,7 @@ def get_passes(lon, lat, alt, n):
         if duration > 60:
             passes.append({"risetime": timegm(dt.timetuple()),
                            "duration": duration,
-                           "risetime-easy:":dt.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S"),
+                           "risetime-easy":dt.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S"),
                            "settime-easy":dt2.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S")})
 
         # Increase the time by more than a pass and less than an orbit
