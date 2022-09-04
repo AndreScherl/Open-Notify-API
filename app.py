@@ -220,6 +220,96 @@ def iss_pass():
 
 
 ################################################################################
+# ISS Passing right now?
+################################################################################
+@app.route("/iss-passing.json")
+@app.route("/iss-passing/")
+@app.route("/iss-passing/v1/")
+@jsonp
+@json
+def iss_passing():
+    """The international space station (ISS) is an orbital outpost circling
+    high above out heads. Sometimes it's overhead, but when? It depends on your
+    location. Given a location on Earth (latitude, longitude, and altitude)
+    this API will tell you if the ISS is overhead right now.
+
+    Overhead is defined as 10 degrees in elevation for the observer. The times
+    are computed in UTC and the length of time that the ISS is above 10 degrees
+    is in seconds.
+
+    **Overview**
+
+    :status 200: when successful
+    :status 400: if one or more inputs is out of range or invalid
+
+    :query lat: latitude in decimal degrees of the ground station. **required** Range: -90, 90
+    :query lon: longitude in decimal degress of the ground station. **required** Range: -180, 180
+    :query alt: altitude in meters of the gronud station. optional. Range: 0, 10,000
+
+    :>json str message: Operation status.
+    :>json obj request: Parameters used in prediction
+    :>json bool response: True if ISS is overhead, False otherwise
+
+    **Example Request**:
+
+    .. sourcecode:: http
+
+        GET /iss-passing/v1/?lat=40.027435&lon=-105.251945&alt=1650 HTTP/1.1
+        Host: api.open-notify.org
+        Accept: application/json, text/javascript
+
+
+    **Example Response**:
+
+    .. sourcecode:: http
+
+        HTTP/1.1 200 OK
+        Content-Type: application/json
+
+        {
+          "message": "success",
+          "request": {
+            "altitude": 1650.0,
+            "datetime": 1454475126,
+            "latitude": 40.027435,
+            "longitude": -105.251945
+          },
+          "response": True
+        }
+        
+    """
+
+    # Sanitize inputs
+    lat = request.args.get('lat', False)
+    if lat:
+        lat = safe_float(lat, (-90.0, 90.0))
+        if not lat:
+            return {"message": "failure", "reason": "Latitude must be number between -90.0 and 90.0"}, 400
+    else:
+        return {"message": "failure", "reason": "Latitude must be specified"}, 400
+
+    lon = request.args.get('lon', False)
+    if lon:
+        lon = safe_float(lon, (-180.0, 180.0))
+        if not lon:
+            return {"message": "failure", "reason": "Longitue must be number between -180.0 and 180.0"}, 400
+    else:
+        return {"message": "failure", "reason": "Longitude must be specified"}, 400
+
+    alt = request.args.get('alt', False)
+    if alt:
+        alt = safe_float(alt, (0, 10000))
+        if not alt:
+            return {"message": "failure", "reason": "Altitude must be number between 0 and 10,000"}, 400
+    else:
+        alt = 100
+
+    # Calculate data and return
+    d = iss.is_iss_passing(lon, lat, alt)
+    return dict({"message": "success"}, **d), 200
+
+
+################################################################################
 # Current People In Space
 ################################################################################
 @app.route("/astros.json")

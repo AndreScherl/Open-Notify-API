@@ -1,3 +1,5 @@
+from concurrent.futures.process import _threads_wakeups
+from urllib import response
 import ephem
 import datetime
 from calendar import timegm
@@ -63,10 +65,6 @@ def get_passes(lon, lat, alt, n):
     # Set time now
     now = datetime.datetime.utcnow()
     location.date = now
-    
-    # Take care of local time
-    utc = pytz.timezone("UTC")
-    berlin = pytz.timezone("Europe/Berlin")
 
     # Predict passes
     passes = []
@@ -74,14 +72,11 @@ def get_passes(lon, lat, alt, n):
         tr, azr, tt, altt, ts, azs = location.next_pass(iss)
         duration = int((ts - tr) * 60 * 60 * 24)
         year, month, day, hour, minute, second = tr.tuple()
-        dt = utc.localize(datetime.datetime(year, month, day, hour, minute, int(second)))
-        dt2 = utc.localize(datetime.datetime.fromtimestamp(dt.timestamp()+duration))
+        dt = datetime.datetime(year, month, day, hour, minute, int(second))
         
         if duration > 60:
             passes.append({"risetime": timegm(dt.timetuple()),
-                           "duration": duration,
-                           "risetime-easy":dt.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S"),
-                           "settime-easy":dt2.astimezone(berlin).strftime("%Y-%m-%d %H:%M:%S")})
+                           "duration": duration})
 
         # Increase the time by more than a pass and less than an orbit
         location.date = tr + 25*ephem.minute
@@ -96,5 +91,31 @@ def get_passes(lon, lat, alt, n):
         },
         "response": passes,
     }
-
+    
     return obj
+
+
+def is_iss_passing(lon, lat, alt):
+    """Check if the ISS is passing right now for a location"""
+    
+    nextpass = get_passes(lon, lat, alt, 1)
+    
+    if len(nextpass["response"]) == 0: # dirty hack because ephem returns an empty array while iss is passing
+        answer = True
+    elif (nextpass["request"]["datetime"] - nextpass["response"][0]["risetime"]) in range(0, nextpass["response"][0]["duration"]):
+        answer = True
+    else:
+        answer = False
+    
+    # Return object
+    obj = {"request": {
+        "datetime": nextpass["request"]["datetime"],
+        "latitude": lat,
+        "longitude": lon,
+        "altitude": alt,
+        },
+        "response": answer,
+    }
+    
+    return obj
+    
